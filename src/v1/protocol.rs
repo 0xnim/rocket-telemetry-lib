@@ -3,12 +3,12 @@
 use crate::common::types::MessageType;
 use crate::v1::packet::V1Packet;
 use crate::packet::Packet;
-use crate::v1::telemetry::TelemetryData;
+use crate::v1::types::TelemetryData;
 use crate::v1::packet::PacketPayload;
 use crate::ProtocolError;
 use std::convert::TryFrom;
 use crate::v1::telemetry::process_telemetry;
-use bytes::{BytesMut, BufMut};
+use crate::common::function::vec_to_bytes_mut;
 
 pub fn process_packet(data: &[u8]) -> Result<Packet, crate::ProtocolError> {
     println!("{:?}", data);
@@ -18,14 +18,20 @@ pub fn process_packet(data: &[u8]) -> Result<Packet, crate::ProtocolError> {
     let message_type = crate::common::types::MessageType::try_from(type_);
     let id = data[1] & 0b00111111; // Last 6 bits
     let len = u16::from_be_bytes([data[2], data[3]]);
+
+    if data.len() < 8 {
+        return Err(ProtocolError::InvalidLength);
+    } else if data.len() != len as usize { // 20 min wasted on == instead of !=
+        return Err(ProtocolError::InvalidLength);
+    }
+
     let time = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
     let data = data[8..].to_vec();
 
-    let sliced_data = &data[0..];
-    let mut bytes_mut = BytesMut::with_capacity(sliced_data.len());
-    bytes_mut.extend_from_slice(sliced_data);
 
-    let mut payload: Option<PacketPayload> = None; // Declare as Option
+    let mut bytes_mut = vec_to_bytes_mut(data);
+
+    let mut payload: Option<PacketPayload> = None;
 
     if let Ok(MessageType::Telemetry) = message_type {
         let telemetry_data: TelemetryData = process_telemetry(&bytes_mut)?;

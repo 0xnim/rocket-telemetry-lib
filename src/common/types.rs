@@ -23,9 +23,3 @@ impl TryFrom<u8> for MessageType {
         }
     }
 }
-
-// usage example
-/*
-let message_type = MessageType::try_from(1)?;
-println!("{:?}", message_type);
-*/
